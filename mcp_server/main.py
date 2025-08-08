@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, HTTPException
 from typing import List, Dict, Any, Optional
 from . import tools
 
@@ -43,4 +43,18 @@ async def mcp_metadata(request: Request) -> Dict[str, Any]:
         "resources": [],
         "prompts": [],
     }
+
+@app.post("/mcp/tools/{tool_name}")
+async def execute_tool(tool_name: str, request: Request):
+    tool_function = getattr(tools, tool_name, None)
+
+    if not tool_function:
+        raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found.")
+
+    try:
+        body = await request.json()
+        result = tool_function(**body)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
