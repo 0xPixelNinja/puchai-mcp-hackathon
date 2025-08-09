@@ -9,6 +9,7 @@ from mcp.server.auth.provider import AccessToken
 from mcp.types import TextContent, ImageContent, INVALID_PARAMS, INTERNAL_ERROR
 from pydantic import BaseModel, Field, AnyUrl
 from bs4 import BeautifulSoup
+from youtube_transcript_api import YouTubeTranscriptApi
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi 
 
@@ -18,6 +19,7 @@ import httpx
 import readabilipy
 import google.generativeai as genai
 import json
+import aiohttp
 
 # --- Load environment variables ---
 load_dotenv()
@@ -27,12 +29,16 @@ MY_NUMBER = os.environ.get("MY_NUMBER")
 REDDIT_CLIENT_ID = os.environ.get("REDDIT_CLIENT_ID")
 REDDIT_CLIENT_SECRET = os.environ.get("REDDIT_CLIENT_SECRET")
 REDDIT_USER_AGENT = os.environ.get("REDDIT_USER_AGENT", "PuchAI/1.0")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+YOUTUBE_API_KEY = os.environ.get("YOUTUBE_API_KEY")
 
 
 assert TOKEN is not None, "Please set AUTH_TOKEN in your .env file"
 assert MY_NUMBER is not None, "Please set MY_NUMBER in your .env file"
 assert REDDIT_CLIENT_ID is not None, "Please set REDDIT_CLIENT_ID in your .env file"
 assert REDDIT_CLIENT_SECRET is not None, "Please set REDDIT_CLIENT_SECRET in your .env file"
+assert GEMINI_API_KEY is not None, "Please set GEMINI_API_KEY in your .env file"
+assert YOUTUBE_API_KEY is not None, "Please set YOUTUBE_API_KEY in your .env file"
 
 # - - - Reddit API Setup ---
 reddit = praw.Reddit(
@@ -40,6 +46,9 @@ reddit = praw.Reddit(
     client_secret=REDDIT_CLIENT_SECRET,
     user_agent=REDDIT_USER_AGENT,
 )
+
+# --- Gemini API Setup ---
+genai.configure(api_key=GEMINI_API_KEY)
 
 # --- Auth Provider ---
 class SimpleBearerAuthProvider(BearerAuthProvider):
@@ -164,7 +173,6 @@ class Fetch:
                 f"Comments: {json.dumps(post['comments'])}\n"
             )
             try:
-                genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
                 model = genai.GenerativeModel("gemini-1.5-flash")
                 response = model.generate_content(prompt)
                 summaries.append({
@@ -182,11 +190,91 @@ class Fetch:
     
     @staticmethod
     async def youtube_search_and_summarize(query: str) -> str:
-        """
-        Search for a YouTube video and return a summary.
-        """
-        # Placeholder for YouTube search and summarization logic
-        return "This is a summary of a YouTube video about the product."
+        """Search YouTube for product review videos, summarize, and send to Puch AI."""
+        
+        # Step 1: Search YouTube
+        youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
+        search_response = youtube.search().list(
+            q=query + " review",
+            part="id,snippet",
+            maxResults=10,
+            type="video"
+        ).execute()
+
+        video_data = []
+        
+        # Step 2: Get captions, descriptions, comments
+        for item in search_response.get("items", []):
+            video_id = item["id"]["videoId"]
+            title = item["snippet"]["title"]
+            description = item["snippet"]["description"]
+
+            # Captions
+            try:
+                transcript = YouTubeTranscriptApi.get_transcript(video_id)
+                captions_text = " ".join([t["text"] for t in transcript])
+            except Exception:
+                captions_text = ""
+
+            # Comments
+            comments_text = ""
+            try:
+                comments_response = youtube.commentThreads().list(
+                    part="snippet",
+                    videoId=video_id,
+                    textFormat="plainText",
+                    maxResults=50
+                ).execute()
+                for comment in comments_response.get("items", []):
+                    comments_text += comment["snippet"]["topLevelComment"]["snippet"]["textDisplay"] + " "
+            except Exception:
+                pass
+
+            video_data.append({
+                "video_id": video_id,
+                "title": title,
+                "description": description,
+                "captions": captions_text,
+                "comments": comments_text
+            })
+
+        # Step 3: Send to Gemini API for summarization
+        async with aiohttp.ClientSession() as session:
+            gemini_prompt = f"""
+            Analyze the following YouTube product reviews (captions, descriptions, comments)
+            and summarize the PROS, CONS, and VERDICT in JSON format.
+
+            Data:
+            {json.dumps(video_data[:5], ensure_ascii=False)}
+            """
+            gemini_url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+            headers = {"Content-Type": "application/json"}
+            params = {"key": GEMINI_API_KEY}
+            payload = {
+                "contents": [{"parts": [{"text": gemini_prompt}]}]
+            }
+
+            async with session.post(gemini_url, params=params, json=payload, headers=headers) as resp:
+                gemini_result = await resp.json()
+
+            # Check for errors in the Gemini API response
+            if "error" in gemini_result:
+                error_details = gemini_result["error"]
+                raise Exception(f"Gemini API Error: {error_details.get('message', 'Unknown error')}")
+
+            # Extract model output safely
+            try:
+                summary_json = gemini_result["candidates"][0]["content"]["parts"][0]["text"]
+            except (KeyError, IndexError) as e:
+                raise Exception(f"Failed to parse Gemini response: {e}\nResponse: {gemini_result}")
+
+            # Step 4: Send to Puch AI
+            try:
+                await session.post( json={"summary": summary_json})
+            except Exception as e:
+                print(f"Error sending to Puch AI: {e}")
+
+        return summary_json
         
     @staticmethod
     async def generate_recommendation(product_info: dict, reviews: list[str], youtube_summary: str) -> str:
