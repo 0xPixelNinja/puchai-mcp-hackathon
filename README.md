@@ -51,6 +51,7 @@ Then edit `.env` and add your details:
 ```env
 AUTH_TOKEN=your_secret_token_here
 MY_NUMBER=919876543210
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 **Important Notes:**

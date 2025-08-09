@@ -13,4 +13,7 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "readabilipy>=0.3.0",
     "youtube-search>=2.1.2",
+    "ddgs",
+    "google-generativeai",
+    "google-genai"
 ]
