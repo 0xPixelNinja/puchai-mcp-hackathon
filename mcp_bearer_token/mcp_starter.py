@@ -8,19 +8,38 @@ from mcp import ErrorData, McpError
 from mcp.server.auth.provider import AccessToken
 from mcp.types import TextContent, ImageContent, INVALID_PARAMS, INTERNAL_ERROR
 from pydantic import BaseModel, Field, AnyUrl
+from bs4 import BeautifulSoup
+from googleapiclient.discovery import build
+from youtube_transcript_api import YouTubeTranscriptApi 
 
+import praw
 import markdownify
 import httpx
 import readabilipy
+import google.generativeai as genai
+import json
 
 # --- Load environment variables ---
 load_dotenv()
 
 TOKEN = os.environ.get("AUTH_TOKEN")
 MY_NUMBER = os.environ.get("MY_NUMBER")
+REDDIT_CLIENT_ID = os.environ.get("REDDIT_CLIENT_ID")
+REDDIT_CLIENT_SECRET = os.environ.get("REDDIT_CLIENT_SECRET")
+REDDIT_USER_AGENT = os.environ.get("REDDIT_USER_AGENT", "PuchAI/1.0")
+
 
 assert TOKEN is not None, "Please set AUTH_TOKEN in your .env file"
 assert MY_NUMBER is not None, "Please set MY_NUMBER in your .env file"
+assert REDDIT_CLIENT_ID is not None, "Please set REDDIT_CLIENT_ID in your .env file"
+assert REDDIT_CLIENT_SECRET is not None, "Please set REDDIT_CLIENT_SECRET in your .env file"
+
+# - - - Reddit API Setup ---
+reddit = praw.Reddit(
+    client_id=REDDIT_CLIENT_ID,
+    client_secret=REDDIT_CLIENT_SECRET,
+    user_agent=REDDIT_USER_AGENT,
+)
 
 # --- Auth Provider ---
 class SimpleBearerAuthProvider(BearerAuthProvider):
@@ -114,13 +133,53 @@ class Fetch:
         return {"product_name": "XM5 6000", "price": "$100", "features": ["Feature A", "Feature B"]}
 
     @staticmethod
-    async def search_product_reviews(query: str, sites: list[str], num_results: int = 5) -> list[str]:
+    async def search_product_reviews(query: str, sites: list[str], num_results: int = 5) -> list[dict]:
         """
-        Perform a scoped DuckDuckGo search for product reviews on specified sites.
+        Search Reddit for product reviews using Reddit API, fetch top posts and comments, summarize via Gemini API, and return JSON.
         """
-        # Placeholder for product review search logic
-        return [f"https://www.reddit.com/r/demoreviews/comments/1", f"https://www.twitter.com/demoreviews/status/1"]
+        # Step 1: Use Reddit API to search for relevant posts
+        posts_data = []
+        try:
+            for submission in reddit.subreddit("all").search(query, sort="relevance", limit=num_results):
+                comments = []
+                submission.comments.replace_more(limit=0)
+                for top_comment in submission.comments[:5]:
+                    comments.append(top_comment.body)
+                posts_data.append({
+                    "url": f"https://www.reddit.com{submission.permalink}",
+                    "title": submission.title,
+                    "description": submission.selftext,
+                    "comments": comments
+                })
+        except Exception as e:
+            return [{"error": f"Reddit API error: {e}"}]
 
+        # Step 2: Summarize using Gemini API
+        summaries = []
+        for post in posts_data:
+            prompt = (
+                f"Summarize the following Reddit product review post and its comments in JSON format with pros, cons, and main points:\n"
+                f"Title: {post['title']}\n"
+                f"Description: {post['description']}\n"
+                f"Comments: {json.dumps(post['comments'])}\n"
+            )
+            try:
+                genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+                model = genai.GenerativeModel("gemini-1.5-flash")
+                response = model.generate_content(prompt)
+                summaries.append({
+                    "url": post["url"],
+                    "summary_json": response.text
+                })
+            except Exception as e:
+                summaries.append({
+                    "url": post["url"],
+                    "summary_json": f"Error summarizing: {e}"
+                })
+
+        return summaries
+
+    
     @staticmethod
     async def youtube_search_and_summarize(query: str) -> str:
         """

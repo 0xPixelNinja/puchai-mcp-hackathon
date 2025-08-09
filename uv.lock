@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.11"
 
 [[package]]
@@ -620,6 +620,7 @@ dependencies = [
     { name = "pillow" },
     { name = "python-dotenv" },
     { name = "readabilipy" },
+    { name = "youtube-search" },
 ]
 
 [package.metadata]
@@ -631,6 +632,7 @@ requires-dist = [
     { name = "pillow", specifier = ">=11.3.0" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
     { name = "readabilipy", specifier = ">=0.3.0" },
+    { name = "youtube-search", specifier = ">=2.1.2" },
 ]
 
 [[package]]
@@ -1377,4 +1379,16 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/32/af/d4502dc713b4ccea7175d764718d5183caf8d0867a4f0190d5d4a45cea49/werkzeug-3.1.1.tar.gz", hash = "sha256:8cd39dfbdfc1e051965f156163e2974e52c210f130810e9ad36858f0fd3edad4", size = 806453, upload-time = "2024-11-01T16:40:45.462Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ee/ea/c67e1dee1ba208ed22c06d1d547ae5e293374bfc43e0eb0ef5e262b68561/werkzeug-3.1.1-py3-none-any.whl", hash = "sha256:a71124d1ef06008baafa3d266c02f56e1836a5984afd6dd6c9230669d60d9fb5", size = 224371, upload-time = "2024-11-01T16:40:43.994Z" },
+]
+
+[[package]]
+name = "youtube-search"
+version = "2.1.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d1/66/87d6d426e6e7cbd9b675d712f2538d55023cb9394411e54cdb60cdc9e002/youtube-search-2.1.2.tar.gz", hash = "sha256:5749a6d8076fda65557c91367f0fab0936290ecdea457c831c9f3f05918a3aa2", size = 3167, upload-time = "2022-10-05T01:47:44.695Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/00/4e/548b906dd72bb51f700feb4f2200de3e0c64b34509d3173afb196ad7f1b9/youtube_search-2.1.2-py3-none-any.whl", hash = "sha256:f9cfaaf7c59806777eb29d3b8acee96b50e80f73a0621c2bb220d4e5beb09e4f", size = 3395, upload-time = "2022-10-05T01:47:42.63Z" },
 ]
