@@ -1,12 +1,9 @@
 from typing import Annotated
 from pydantic import Field
 from app.models.tool_models import RichToolDescription
-from app.utils.fetch import Fetch
-import base64
-import os
-from google import genai
-from google.genai import types
-import json
+from app.utils.product_info_fetcher import get_product_info
+from app.utils.review_analyzer import analyze_reviews
+from app.utils.youtube_summarizer import summarize_youtube_videos
 
 def product_analyzer_tool(mcp):
     ProductAnalyzerDescription = RichToolDescription(
@@ -23,51 +20,27 @@ def product_analyzer_tool(mcp):
         Analyzes a product based on a user's prompt, gathers information, and provides a recommendation.
         """
         
-        search_results = Fetch.search_web(product_prompt, num_results=10)
-        
-        if not search_results:
-            return "Could not find any information about the product."
+        # 1. Get Product Information
+        product_info = get_product_info(product_prompt)
 
-        client = genai.Client(
-            api_key=os.environ.get("GEMINI_API_KEY"),
-        )
+        # 2. Get Product Reviews
+        product_reviews = analyze_reviews(product_info)
 
-        model = "gemini-2.5-flash"
-        
-        search_results_json = json.dumps(search_results, indent=2)
+        # 3. Get YouTube Video Summaries
+        youtube_summaries = summarize_youtube_videos(product_info)
 
-        final_prompt = f"""i have enabled your tool like google search grounding and url context, so please go trhough the links find out {product_prompt} and do the work and get me the products/s info in json format only very strict from the following search results:\n\n{search_results_json}, if the search_results_json is irrevalvent do the google search for the product and get the info and return the json format only very strict limt
-         limit yourself to 2 products from the search results and do the work and get me the products/s info in json format only very strict """
+        # 4. Generate Final Answer
+        final_answer = f"""
+        Product Information:
+        {product_info}
 
-        print(final_prompt)
+        Product Reviews:
+        {product_reviews}
 
-        contents = [
-            types.Content(
-                role="user",
-                parts=[
-                    types.Part.from_text(text=final_prompt),
-                ],  
-            ),
-        ]
-        tools = [
-            types.Tool(url_context=types.UrlContext()),
-        ]
-        generate_content_config = types.GenerateContentConfig(
-            thinking_config=types.ThinkingConfig(
-                thinking_budget=-1,
-            ),
-            tools=tools,
-        )
+        YouTube Summaries:
+        {youtube_summaries}
+        """
 
-        response_chunks = []
-        for chunk in client.models.generate_content_stream(
-            model=model,
-            contents=contents,
-            config=generate_content_config,
-        ):
-            response_chunks.append(chunk.text)
-            print(chunk.text)
-        
-        return "".join(response_chunks)
+        return final_answer
 
     return product_analyzer

@@ -3,8 +3,8 @@ from fastmcp import FastMCP
 from app.core.auth import SimpleBearerAuthProvider
 from app.core.config import TOKEN
 from app.tools.validate import validate_tool
-from app.tools.job_finder import job_finder_tool
-from app.tools.image_tool import image_tool
+from app.tools.archives.job_finder import job_finder_tool
+from app.tools.archives.image_tool import image_tool
 from app.tools.product_analyzer import product_analyzer_tool
 
 # --- MCP Server Setup ---
