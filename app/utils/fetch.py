@@ -1,9 +1,10 @@
 import httpx
 import markdownify
 import readabilipy
-from bs4 import BeautifulSoup
+from ddgs import DDGS
 from mcp import ErrorData, McpError
 from mcp.types import INTERNAL_ERROR
+
 
 class Fetch:
     USER_AGENT = "Puch/1.0 (Autonomous)"
@@ -27,7 +28,9 @@ class Fetch:
                 raise McpError(ErrorData(code=INTERNAL_ERROR, message=f"Failed to fetch {url}: {e!r}"))
 
             if response.status_code >= 400:
-                raise McpError(ErrorData(code=INTERNAL_ERROR, message=f"Failed to fetch {url} - status code {response.status_code}"))
+                raise McpError(
+                    ErrorData(code=INTERNAL_ERROR, message=f"Failed to fetch {url} - status code {response.status_code}")
+                )
 
             page_raw = response.text
 
@@ -52,25 +55,24 @@ class Fetch:
         return content
 
     @staticmethod
-    async def google_search_links(query: str, num_results: int = 5) -> list[str]:
+    def search_web(query: str, num_results: int = 5, region: str = 'us-en') -> list[dict]:
         """
-        Perform a scoped DuckDuckGo search and return a list of job posting URLs.
-        (Using DuckDuckGo because Google blocks most programmatic scraping.)
+        Perform a DuckDuckGo search and return a list of results with titles, links, and descriptions.
         """
-        ddg_url = f"https://html.duckduckgo.com/html/?q={query.replace(' ', '+')}"
-        links = []
+        results = []
+        try:
+            with DDGS() as ddgs:
+                for r in ddgs.text(query, region=region, max_results=num_results):
+                    results.append(
+                        {
+                            "title": r.get("title"),
+                            "link": r.get("href"),
+                            "description": r.get("body"),
+                        }
+                    )
+        except Exception as e:
+            print(f"DuckDuckGo search failed: {e}")
+            return []
 
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(ddg_url, headers={"User-Agent": Fetch.USER_AGENT})
-            if resp.status_code != 200:
-                return ["<error>Failed to perform search.</error>"]
-
-        soup = BeautifulSoup(resp.text, "html.parser")
-        for a in soup.find_all("a", class_="result__a", href=True):
-            href = a["href"]
-            if "http" in href:
-                links.append(href)
-            if len(links) >= num_results:
-                break
-
-        return links or ["<error>No results found.</error>"]
+        print(results)
+        return results
