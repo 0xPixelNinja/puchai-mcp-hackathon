@@ -15,5 +15,6 @@ dependencies = [
     "youtube-search>=2.1.2",
     "ddgs",
     "google-generativeai",
-    "google-genai"
+    "google-genai",
+    "praw"
 ]
