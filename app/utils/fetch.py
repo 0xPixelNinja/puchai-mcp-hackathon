@@ -1,16 +1,9 @@
-from pydantic import BaseModel
-import markdownify
 import httpx
+import markdownify
 import readabilipy
-from mcp import McpError, ErrorData
+from bs4 import BeautifulSoup
+from mcp import ErrorData, McpError
 from mcp.types import INTERNAL_ERROR
-
-
-class RichToolDescription(BaseModel):
-    description: str
-    use_when: str
-    side_effects: str | None = None
-
 
 class Fetch:
     USER_AGENT = "Puch/1.0 (Autonomous)"
@@ -57,3 +50,27 @@ class Fetch:
             return "<error>Page failed to be simplified from HTML</error>"
         content = markdownify.markdownify(ret["content"], heading_style=markdownify.ATX)
         return content
+
+    @staticmethod
+    async def google_search_links(query: str, num_results: int = 5) -> list[str]:
+        """
+        Perform a scoped DuckDuckGo search and return a list of job posting URLs.
+        (Using DuckDuckGo because Google blocks most programmatic scraping.)
+        """
+        ddg_url = f"https://html.duckduckgo.com/html/?q={query.replace(' ', '+')}"
+        links = []
+
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(ddg_url, headers={"User-Agent": Fetch.USER_AGENT})
+            if resp.status_code != 200:
+                return ["<error>Failed to perform search.</error>"]
+
+        soup = BeautifulSoup(resp.text, "html.parser")
+        for a in soup.find_all("a", class_="result__a", href=True):
+            href = a["href"]
+            if "http" in href:
+                links.append(href)
+            if len(links) >= num_results:
+                break
+
+        return links or ["<error>No results found.</error>"]
