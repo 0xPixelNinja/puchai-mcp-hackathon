@@ -23,11 +23,17 @@ def product_analyzer_tool(mcp):
         # 1. Get Product Information
         product_info = get_product_info(product_prompt)
 
+        print(product_info)
+
         # 2. Get Product Reviews
         product_reviews = analyze_reviews(product_info)
 
+        print(product_reviews)
+
         # 3. Get YouTube Video Summaries
         youtube_summaries = summarize_youtube_videos(product_info)
+
+        print(youtube_summaries)
 
         # 4. Generate Final Answer
         final_answer = f"""
@@ -40,6 +46,8 @@ def product_analyzer_tool(mcp):
         YouTube Summaries:
         {youtube_summaries}
         """
+
+        print(final_answer)
 
         return final_answer
 
