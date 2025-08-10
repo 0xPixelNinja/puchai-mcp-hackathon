@@ -8,7 +8,7 @@ def get_product_info(product_prompt: str) -> str:
     """
     Fetches product information based on a user's prompt.
     """
-    search_results = Fetch.search_web(product_prompt, num_results=10)
+    search_results = Fetch.search_web(product_prompt, num_results=6)
     
     if not search_results:
         return "Could not find any information about the product."

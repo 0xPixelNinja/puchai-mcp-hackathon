@@ -6,10 +6,12 @@ from app.tools.validate import validate_tool
 from app.tools.archives.job_finder import job_finder_tool
 from app.tools.archives.image_tool import image_tool
 from app.tools.product_analyzer import product_analyzer_tool
+from app.tools.youtube_summarizer_tool import youtube_summarizer_tool
+from app.tools.review_analyzer_tool import review_analyzer_tool
 
 # --- MCP Server Setup ---
 mcp = FastMCP(
-    "Job Finder MCP Server",
+    "Product Analysis MCP Server",
     auth=SimpleBearerAuthProvider(TOKEN),
 )
 
@@ -18,6 +20,8 @@ validate_tool(mcp)
 #job_finder_tool(mcp)
 #image_tool(mcp)
 product_analyzer_tool(mcp)
+youtube_summarizer_tool(mcp)
+review_analyzer_tool(mcp)
 
 # --- Run MCP Server ---
 async def main():

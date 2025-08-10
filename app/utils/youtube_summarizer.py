@@ -1,4 +1,5 @@
 import app.core.config as config
+import json
 from googleapiclient.discovery import build
 from youtube_transcript_api import YouTubeTranscriptApi 
 
@@ -7,7 +8,6 @@ YOUTUBE_API_KEY = config.YOUTUBE_API_KEY
 def summarize_youtube_videos(product_prompt: str) -> str:
     """
     Summarizes YouTube videos for the given product.
-    (Placeholder implementation)
     """
 
     # Step 1: Search YouTube
@@ -15,7 +15,7 @@ def summarize_youtube_videos(product_prompt: str) -> str:
     search_response = youtube.search().list(
         q=product_prompt + " review",
         part="id,snippet",
-        maxResults=10,
+        maxResults=5,  # Reduced to 5 for performance
         type="video"
     ).execute()
 
@@ -26,34 +26,41 @@ def summarize_youtube_videos(product_prompt: str) -> str:
         video_id = item["id"]["videoId"]
         title = item["snippet"]["title"]
         description = item["snippet"]["description"]
+        video_url = f"https://www.youtube.com/watch?v={video_id}"
 
         # Captions
         try:
             transcript = YouTubeTranscriptApi.get_transcript(video_id)
-            captions_text = " ".join([t["text"] for t in transcript])
+            captions_text = " ".join([t["text"] for t in transcript])[:1000]  # Limit caption text size
         except Exception:
-            captions_text = ""
+            captions_text = "Transcript not available"
 
-        # Comments
+        # Comments (limiting to avoid too much data)
         comments_text = ""
         try:
             comments_response = youtube.commentThreads().list(
                 part="snippet",
                 videoId=video_id,
                 textFormat="plainText",
-                maxResults=50
+                maxResults=5  # Reduced for performance
             ).execute()
             for comment in comments_response.get("items", []):
-                comments_text += comment["snippet"]["topLevelComment"]["snippet"]["textDisplay"] + " "
+                comment_text = comment["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
+                comments_text += comment_text[:200] + "... "  # Limit comment size
         except Exception:
-            pass
+            comments_text = "Comments not available"
 
         video_data.append({
             "video_id": video_id,
+            "url": video_url,
             "title": title,
-            "description": description,
-            "captions": captions_text,
-            "comments": comments_text
+            "description": description[:500],  # Limit description size
+            "top_comments": comments_text
         })
-    # # TODO: Implement YouTube search and summarization logic
-    # return "YouTube video summarization not implemented yet."
+    
+    # Format the response
+    if not video_data:
+        return "No YouTube videos found for this product."
+    
+    formatted_result = json.dumps(video_data, indent=2)
+    return formatted_result
