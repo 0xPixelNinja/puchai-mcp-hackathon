@@ -12,9 +12,9 @@ dependencies = [
     "pillow>=11.3.0",
     "python-dotenv>=1.1.1",
     "readabilipy>=0.3.0",
-    "youtube-search>=2.1.2",
     "ddgs",
     "google-generativeai",
     "google-genai",
-    "praw"
+    "praw",
+    "youtube_transcript_api"
 ]
