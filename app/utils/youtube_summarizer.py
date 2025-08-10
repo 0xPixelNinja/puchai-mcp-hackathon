@@ -54,6 +54,7 @@ def summarize_youtube_videos(product_prompt: str) -> str:
             "video_id": video_id,
             "url": video_url,
             "title": title,
+            "captions_text": captions_text,
             "description": description[:500],  # Limit description size
             "top_comments": comments_text
         })
