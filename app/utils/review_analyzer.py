@@ -1,8 +1,9 @@
-import praw, os
+import praw
+import app.core.config as config
 
-REDDIT_CLIENT_ID = os.environ.get("REDDIT_CLIENT_ID")
-REDDIT_CLIENT_SECRET = os.environ.get("REDDIT_CLIENT_SECRET")
-REDDIT_USER_AGENT = os.environ.get("REDDIT_USER_AGENT", "PuchAI/1.0")
+REDDIT_CLIENT_ID = config.REDDIT_CLIENT_ID
+REDDIT_CLIENT_SECRET = config.REDDIT_CLIENT_SECRET
+REDDIT_USER_AGENT = config.REDDIT_USER_AGENT
 
 reddit = praw.Reddit(
     client_id=REDDIT_CLIENT_ID,

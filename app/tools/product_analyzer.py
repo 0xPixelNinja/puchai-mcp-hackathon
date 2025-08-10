@@ -31,7 +31,7 @@ def product_analyzer_tool(mcp):
         print(product_reviews)
 
         # 3. Get YouTube Video Summaries
-        youtube_summaries = summarize_youtube_videos(product_info)
+        youtube_summaries = summarize_youtube_videos(product_info['model'])
 
         print(youtube_summaries)
 
